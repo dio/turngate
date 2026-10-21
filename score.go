@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES.
 // SPDX-License-Identifier: Apache-2.0
 // Adapted from Switchyard stage.rs; see NOTICE for revision and modifications.
+
 package turngate
 
 import (
@@ -12,35 +13,64 @@ import (
 // counters cover calls; severity and repeated failure cover nonempty/failed results.
 // Severity retains Rust's float32 representation for reference compatibility.
 type Signals struct {
-	Severity        float32
+	// Severity is the maximum diagnostic severity in the recent result
+	// window, in [0,1]; 1 represents a critical failure.
+	Severity float32
+	// RepeatedFailure reports a repeated normalized material failure in the
+	// recent result window.
 	RepeatedFailure bool
-	NoErrorStreak   uint32
-	RecentWrites    uint32
-	RecentEdits     uint32
-	RecentReads     uint32
-	RecentPlans     uint32
-	RecentNew       uint32
-	ToolCallCount   uint32
+	// NoErrorStreak counts consecutive clean eligible results at the end of
+	// all supplied history, not just the recent window. Retrieval placeholders
+	// are clean; empty successful outputs do not advance this counter.
+	NoErrorStreak uint32
+	// RecentWrites counts recognized writes in the recent call window.
+	RecentWrites uint32
+	// RecentEdits counts recognized edits in the recent call window.
+	RecentEdits uint32
+	// RecentReads counts recognized observations in the recent call window.
+	RecentReads uint32
+	// RecentPlans counts planning calls in the recent call window.
+	RecentPlans uint32
+	// RecentNew counts custom NewActivity calls in the recent call window.
+	RecentNew uint32
+	// ToolCallCount counts all supplied calls, including unknown tools.
+	ToolCallCount uint32
+	// ToolResultCount counts all supplied results, including empty successes.
 	ToolResultCount uint32
-	TurnDepth       uint32
-	TestsPassed     bool
-	Compacted       bool
+	// TurnDepth is the number of supplied messages, not logical agent turns.
+	TurnDepth uint32
+	// TestsPassed reports a recognized test pass with no later failed or
+	// positive-severity result in the recent window. It is a text heuristic.
+	TestsPassed bool
+	// Compacted is true for adapter metadata or recognized text markers.
+	Compacted bool
 }
 
 // Score describes signed heuristic evidence. Positive favors capable, negative
 // favors efficient. Confidence is abs(Value), not a probability of correctness.
 type Score struct {
-	Value               float64
-	Confidence          float64
-	Severity            float64
-	Spinning            float64
-	Exploring           float64
+	// Value is the signed score in [-1,1]: positive favors Capable.
+	Value float64
+	// Confidence is abs(Value), in [0,1], not a probability.
+	Confidence float64
+	// Severity is the extracted float32 severity promoted to float64.
+	Severity float64
+	// Spinning is 1 at depth >= 8 with no recent production, new activity,
+	// reads or plans; otherwise 0. It is mutually exclusive with Exploring.
+	Spinning float64
+	// Exploring is 1 at depth >= 8 with recent reads/plans but no production
+	// or new activity; otherwise 0.
+	Exploring float64
+	// ProductionIntensity is (writes+edits)/(writes+edits+reads+plans),
+	// or zero if the denominator is zero. New activity is excluded.
 	ProductionIntensity float64
 }
 
 // ScoreSignals computes the diagnostic score without choosing a label or applying
 // overrides/holds. Signals should come from Result.Signals; manually constructed
-// signals require a finite severity in [0,1].
+// signals require a finite severity in [0,1]. Invalid severity returns a zero
+// Score and an error. Counters are accepted as given, without consistency checks;
+// use extracted signals when interpreting results as actual history evidence.
 func ScoreSignals(s Signals) (Score, error) {
 	if math.IsNaN(float64(s.Severity)) || math.IsInf(float64(s.Severity), 0) || s.Severity < 0 || s.Severity > 1 {
 		return Score{}, fmt.Errorf("turngate: severity must be finite and in [0,1]")
