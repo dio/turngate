@@ -3,7 +3,11 @@
 Use Go 1.24 or later. The library uses only the standard library; development
 checks use the tool versions pinned in `.github/workflows/ci.yml`.
 
+Install golangci-lint v2.15.0 using its official release, then clone the project:
+
 ```sh
+git clone https://github.com/dio/turngate.git
+cd turngate
 make fmt
 make test
 make vet
@@ -42,6 +46,19 @@ reproduction, not an entire generated corpus.
 Preserve upstream attribution when changing adapted code. Keep compatibility
 boundaries in DESIGN.md current. New heuristic rules need behavioral tests and
 workload evidence before making quality or savings claims.
+
+## Documentation and pull requests
+
+Keep exported declarations and struct fields documented, including defaults,
+limits, errors, state ownership and concurrency. Preview with `go doc -all .`.
+Add runnable `Example` functions when introducing a new integration pattern;
+`go test` verifies their output. Update README/USE_CASES/DESIGN when the public
+contract changes. GitHub Releases serve as the changelog.
+
+Submit a pull request with the behavior changed and checks run. The protected
+main branch requires current CI and one approving review, including for admins.
+Outside contributors need approval before their workflows run. Avoid private
+repository paths, internal deployment details or credentials in code and docs.
 
 ## Releases
 

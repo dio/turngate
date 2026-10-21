@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES.
 // SPDX-License-Identifier: Apache-2.0
 // Adapted from Switchyard tool_signals.rs; see NOTICE.
+
 package turngate
 
 import "strings"
