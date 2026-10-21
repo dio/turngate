@@ -1,0 +1,12 @@
+Turngate contains Go adaptations of NVIDIA NeMo Switchyard's Stage Router.
+Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Source: https://github.com/NVIDIA-NeMo/Switchyard
+Revision: 7dddc65a099704a97cb1dd0f4858acc15ac2cda5
+Files: crates/libsy/src/algorithms/util/stage.rs and tool_signals.rs
+
+Modifications: Go implementation; normalized evidence API; explicit caller-owned
+hold state; configured choice labels; bounded input validation; no model calls,
+provider translation, telemetry or prompt mutation. See DESIGN.md for behavioral
+boundaries and differences. The original source is not bundled.

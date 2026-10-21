@@ -1,0 +1,31 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - errcheck
+    - gocritic
+    - unconvert
+    - nolintlint
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+formatters:
+  enable:
+    - gci
+    - gofumpt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/dio/turngate)
+      custom-order: true
+    gofumpt:
+      extra:
+        group-params: true
+        clothe-returns: true

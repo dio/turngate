@@ -1,0 +1,69 @@
+[
+  {
+    "Name": "quiet",
+    "Signals": {},
+    "Value": 0
+  },
+  {
+    "Name": "hard_error",
+    "Signals": {
+      "Severity": 0.7
+    },
+    "Value": 0.4621171505634472
+  },
+  {
+    "Name": "spinning",
+    "Signals": {
+      "TurnDepth": 8
+    },
+    "Value": 0.46211715726000974
+  },
+  {
+    "Name": "exploring",
+    "Signals": {
+      "TurnDepth": 8,
+      "RecentReads": 1
+    },
+    "Value": 0.46211715726000974
+  },
+  {
+    "Name": "new_activity",
+    "Signals": {
+      "TurnDepth": 8,
+      "RecentNew": 1
+    },
+    "Value": 0
+  },
+  {
+    "Name": "clean_write",
+    "Signals": {
+      "RecentWrites": 1
+    },
+    "Value": -0.874053287886007
+  },
+  {
+    "Name": "clean_write_among_reads",
+    "Signals": {
+      "RecentWrites": 1,
+      "RecentReads": 15
+    },
+    "Value": -0.5695624784539901
+  },
+  {
+    "Name": "production_after_error",
+    "Signals": {
+      "Severity": 0.3,
+      "RecentWrites": 1
+    },
+    "Value": -0.4897369848646626
+  },
+  {
+    "Name": "error_and_exploration",
+    "Signals": {
+      "Severity": 0.7,
+      "TurnDepth": 8,
+      "RecentReads": 1
+    },
+    "Value": 0.7615941523797047
+  }
+]

@@ -1,0 +1,4 @@
+/coverage.out
+*.test
+/.artifacts/
+/.fuzz-cache/

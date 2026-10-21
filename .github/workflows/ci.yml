@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GOWORK: 'off'
+
+jobs:
+  test:
+    name: Test (${{ matrix.go }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.24.x', '1.25.x', '1.26.x', stable]
+        os: [ubuntu-latest]
+        include:
+          - go: stable
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Module hygiene
+        shell: bash
+        run: |
+          go mod tidy
+          git diff --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+      - name: Race tests, vet and pure Go build
+        shell: bash
+        run: |
+          mkdir -p .artifacts
+          go test -race -shuffle=on -count=1 -coverprofile=.artifacts/coverage.out ./...
+          go vet ./...
+          CGO_ENABLED=0 go test -count=1 ./...
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-${{ matrix.go }}-${{ matrix.os }}
+          path: .artifacts/coverage.out
+          retention-days: 14
+          if-no-files-found: ignore
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.15.0
+
+  vulnerability:
+    name: Vulnerability check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  fuzz:
+    name: Fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [FuzzEvaluate, FuzzHistory, FuzzScoreSignals]
+    env:
+      FUZZ_TIME: ${{ github.event_name == 'schedule' && '10m' || '30s' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Active coverage-guided fuzzing
+        env:
+          GOCACHE: ${{ runner.temp }}/turngate-go-cache
+        shell: bash
+        run: |
+          mkdir -p .artifacts
+          go test -run='^$' -fuzz='^${{ matrix.target }}$' -fuzztime="$FUZZ_TIME" -parallel=2 -timeout=12m . 2>&1 | tee .artifacts/fuzz.log
+      - name: Preserve logs and reproduction inputs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: |
+            .artifacts/fuzz.log
+            testdata/fuzz/
+            ${{ runner.temp }}/turngate-go-cache/fuzz/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  ci:
+    name: CI
+    if: always()
+    needs: [test, lint, vulnerability, fuzz]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every check
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          VULN_RESULT: ${{ needs.vulnerability.result }}
+          FUZZ_RESULT: ${{ needs.fuzz.result }}
+        run: |
+          test "$TEST_RESULT" = success
+          test "$LINT_RESULT" = success
+          test "$VULN_RESULT" = success
+          test "$FUZZ_RESULT" = success
